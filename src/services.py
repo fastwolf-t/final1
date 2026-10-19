@@ -110,7 +110,7 @@ def investment_bank(
     """Рассчитывает округление покупок для инвесткопилки в рублях"""
 
     if limit <= 0:
-        raise ValueError("Лимит округления должен быть больше нуля")
+        raise ValueError("Лимит округления не может быть отрицательным!")
 
     rates = _get_rates(transactions)
     total = 0.0

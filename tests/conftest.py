@@ -4,12 +4,9 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
-
-
 @pytest.fixture
 def transactions() -> pd.DataFrame:
-    """Маленький набор операций, посчитанный руками"""
+    """Набор данныx для теста"""
 
     return pd.DataFrame(
         {
@@ -51,11 +48,3 @@ def transactions() -> pd.DataFrame:
             ],
         }
     )
-
-
-@pytest.fixture
-def in_tmp_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    """Чтобы тесты не трогали твою папку report/"""
-
-    monkeypatch.chdir(tmp_path)
-    return tmp_path

@@ -5,9 +5,6 @@ from typing import Any, TypeVar, cast
 
 import pandas as pd
 
-F = TypeVar("F", bound=Callable[..., Any])
-
-
 def save_report(file: str) -> Callable[[F], F]:
     """Сохраняет результат отчёта в Excel"""
 

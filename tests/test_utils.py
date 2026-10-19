@@ -23,7 +23,7 @@ class FakeResponse:
 
 
 def fake_get(*responses: FakeResponse) -> Any:
-    """Отдаёт ответы по очереди: первый вызов — первый ответ и т.д."""
+    """Отдаёт ответы по очереди"""
 
     queue = list(responses)
 

@@ -34,6 +34,7 @@ def get_currency_rates(currencies: list[str]) -> list[dict[str, Any]]:
             response.raise_for_status()
             inverse_rates = response.json()["rates"]
             available_rates = {}
+
             for currency, inverse_rate in inverse_rates.items():
                 if inverse_rate:
                     available_rates[currency] = {
@@ -57,10 +58,12 @@ def get_currency_rates(currencies: list[str]) -> list[dict[str, Any]]:
     result = []
     for currency in currencies:
         code = currency.upper()
+
         if code == "RUB":
             result.append({"currency": code, "rate": 1.0})
             continue
         currency_data = available_rates.get(code)
+
         if currency_data is None:
             rate = None
         else:
@@ -70,5 +73,7 @@ def get_currency_rates(currencies: list[str]) -> list[dict[str, Any]]:
                 rate = round(value / nominal, 4) if nominal > 0 else None
             except KeyError, TypeError, ValueError, ZeroDivisionError:
                 rate = None
+
         result.append({"currency": code, "rate": rate})
+        
     return result

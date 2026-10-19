@@ -92,8 +92,7 @@ def home_page(date_time: str, transactions: pd.DataFrame) -> str:
                     currency_group["Сумма платежа"] < 0,
                     "Сумма платежа",
                 ]
-                .abs()
-                .sum()
+                .abs().sum()
             )
 
             cards.append(

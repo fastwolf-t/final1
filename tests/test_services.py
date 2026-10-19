@@ -5,9 +5,6 @@ import pytest
 
 import services
 
-# ---------- simple_search ----------
-
-
 @pytest.fixture
 def search_df() -> pd.DataFrame:
     return pd.DataFrame(
@@ -44,7 +41,6 @@ def test_simple_search_by_category(search_df: pd.DataFrame) -> None:
 def test_simple_search_special_chars_are_literal(
     search_df: pd.DataFrame,
 ) -> None:
-    # regex=False, so "(" must not raise and must match literally
     result = services.simple_search(search_df, "(тест)")
     assert len(result) == 1
 
@@ -52,18 +48,12 @@ def test_simple_search_special_chars_are_literal(
 def test_simple_search_no_match(search_df: pd.DataFrame) -> None:
     assert services.simple_search(search_df, "нет такого") == []
 
-
-# ---------- investment_bank ----------
-
-
 @pytest.fixture(autouse=True)
 def fake_rates(monkeypatch: pytest.MonkeyPatch) -> None:
     rates: dict[str, float | None] = {"USD": 90.0, "XXX": None}
 
     def fake(currencies: list[str]) -> list[dict[str, Any]]:
         return [{"currency": c, "rate": rates.get(c)} for c in currencies]
-
-    monkeypatch.setattr(services, "get_currency_rates", fake)
 
 
 def test_investment_bank_rub_rounding() -> None:
@@ -106,7 +96,6 @@ def test_investment_bank_foreign_currency() -> None:
             "Валюта операции": "usd",
         },
     ]
-    # 10.5 * 90 = 945 -> 1000, diff 55
     assert services.investment_bank("2021-12", transactions, 100) == 55.0
 
 
@@ -153,10 +142,6 @@ def test_investment_bank_invalid_limit(limit: int) -> None:
     with pytest.raises(ValueError):
         services.investment_bank("2021-12", [], limit)
 
-
-# ---------- find_person_transfers ----------
-
-
 def test_find_person_transfers() -> None:
     df = pd.DataFrame(
         {
@@ -176,9 +161,6 @@ def test_find_person_transfers() -> None:
 def test_find_person_transfers_empty() -> None:
     df = pd.DataFrame({"Категория": ["Кафе"], "Описание": ["Кофе"]})
     assert services.find_person_transfers(df) == []
-
-
-# ---------- find_phone_numbers ----------
 
 
 @pytest.mark.parametrize(
@@ -202,9 +184,6 @@ def test_find_phone_numbers_matches(description: str) -> None:
 def test_find_phone_numbers_no_match(description: str | None) -> None:
     df = pd.DataFrame({"Описание": [description]})
     assert services.find_phone_numbers(df) == []
-
-
-# ---------- cashback_by_category ----------
 
 
 @pytest.fixture
@@ -236,7 +215,7 @@ def cashback_df() -> pd.DataFrame:
 def test_cashback_by_category(cashback_df: pd.DataFrame) -> None:
     result = services.cashback_by_category(cashback_df, 2021, 3)
     assert result == {
-        "Еда (RUB)": 3.0,  # 250//100 + 199.99//100
+        "Еда (RUB)": 3.0,
         "Транспорт (RUB)": 10.0,
         "Еда (USD)": 3.0,
     }

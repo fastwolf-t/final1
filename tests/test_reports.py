@@ -5,12 +5,6 @@ import pytest
 
 import reports
 
-
-@pytest.fixture(autouse=True)
-def _use_tmp_dir(in_tmp_dir: Path) -> None:
-    """Все отчёты в этом файле пишутся во временную папку"""
-
-
 def test_spending_by_category(transactions: pd.DataFrame) -> None:
     result = reports.spending_by_category(
         transactions, "супермаркеты", "2021-03-31"
@@ -23,7 +17,7 @@ def test_spending_by_category(transactions: pd.DataFrame) -> None:
 def test_spending_by_category_without_date(
     transactions: pd.DataFrame,
 ) -> None:
-    # без даты берётся самая поздняя операция (09.03.2021)
+    # без даты берётся самая поздняя операция
     result = reports.spending_by_category(transactions, "Супермаркеты")
     assert len(result) == 2
 

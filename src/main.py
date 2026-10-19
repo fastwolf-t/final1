@@ -64,8 +64,6 @@ def short_transactions(transactions):
 
 
 def main():
-    """Запускает приложение"""
-
     transactions = load_operations("data/operations.xlsx")
     dates = pd.to_datetime(
         transactions["Дата операции"],
@@ -173,6 +171,4 @@ def main():
         },
     )
 
-
-if __name__ == "__main__":
-    main()
+main()
