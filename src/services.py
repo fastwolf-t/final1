@@ -3,7 +3,7 @@ from typing import Any
 
 import pandas as pd
 
-from utils import get_currency_rates
+from src.utils import get_currency_rates
 
 # фамилия/имя и инициал, например "Валерий А."
 PERSON_PATTERN = r"^[А-ЯЁ][а-яё]+\s+[А-ЯЁ]\.$"

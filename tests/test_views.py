@@ -1,11 +1,47 @@
 import json
+from collections.abc import Iterator
 from typing import Any
+from unittest.mock import Mock, patch
 
 import pandas as pd
 import pytest
 import requests
 
 import views
+
+
+def make_response(data: Any = None, error: bool = False) -> Mock:
+    response = Mock()
+    response.json.return_value = data
+    if error:
+        response.raise_for_status.side_effect = requests.RequestException(
+            "boom"
+        )
+    return response
+
+
+@pytest.fixture
+def fake_outside() -> Iterator[None]:
+    with (
+        patch.object(
+            views,
+            "load_settings",
+            return_value={"user_currencies": ["USD"], "user_stocks": ["AAPL"]},
+        ),
+        patch.object(
+            views,
+            "get_currency_rates",
+            side_effect=lambda cur: [
+                {"currency": c, "rate": 90.0} for c in cur
+            ],
+        ),
+        patch.object(
+            views,
+            "get_stock_prices",
+            side_effect=lambda st: [{"stock": s, "price": 1.0} for s in st],
+        ),
+    ):
+        yield
 
 
 @pytest.mark.parametrize(
@@ -26,59 +62,27 @@ def test_get_greeting(hour: int, expected: str) -> None:
     assert views.get_greeting(hour) == expected
 
 
-class FakeResponse:
-    def __init__(self, data: Any = None, error: bool = False) -> None:
-        self._data = data
-        self._error = error
-
-    def raise_for_status(self) -> None:
-        if self._error:
-            raise requests.RequestException("boom")
-
-    def json(self) -> Any:
-        return self._data
-
-
-def test_get_stock_prices(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_get_stock_prices() -> None:
     answers = {
-        "AAPL": FakeResponse(
+        "AAPL": make_response(
             {"chart": {"result": [{"meta": {"regularMarketPrice": 150.456}}]}}
         ),
-        "EMPTY": FakeResponse({"chart": {"result": []}}),
-        "NOPRICE": FakeResponse({"chart": {"result": [{"meta": {}}]}}),
-        "BROKEN": FakeResponse({"oops": 1}),
-        "DOWN": FakeResponse(error=True),
+        "EMPTY": make_response({"chart": {"result": []}}),
+        "NOPRICE": make_response({"chart": {"result": [{"meta": {}}]}}),
+        "BROKEN": make_response({"oops": 1}),
+        "DOWN": make_response(error=True),
     }
 
-    def fake_get(url: str, **kwargs: Any) -> FakeResponse:
+    def fake_get(url: str, **kwargs: Any) -> Mock:
         return answers[url.rsplit("/", 1)[1]]
 
-    monkeypatch.setattr(views.requests, "get", fake_get)
+    with patch.object(views.requests, "get", side_effect=fake_get):
+        result = views.get_stock_prices(
+            ["aapl.US", "EMPTY", "NOPRICE", "BROKEN", "DOWN"]
+        )
 
-    result = views.get_stock_prices(
-        ["aapl.US", "EMPTY", "NOPRICE", "BROKEN", "DOWN"]
-    )
     assert [r["price"] for r in result] == [150.46, None, None, None, None]
     assert result[0]["stock"] == "aapl.US"
-
-
-@pytest.fixture
-def fake_outside(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(
-        views,
-        "load_settings",
-        lambda: {"user_currencies": ["USD"], "user_stocks": ["AAPL"]},
-    )
-    monkeypatch.setattr(
-        views,
-        "get_currency_rates",
-        lambda cur: [{"currency": c, "rate": 90.0} for c in cur],
-    )
-    monkeypatch.setattr(
-        views,
-        "get_stock_prices",
-        lambda st: [{"stock": s, "price": 1.0} for s in st],
-    )
 
 
 def test_home_page(transactions: pd.DataFrame, fake_outside: None) -> None:
@@ -91,7 +95,7 @@ def test_home_page(transactions: pd.DataFrame, fake_outside: None) -> None:
         {"last_digits": "7197", "total_spent": 750.0, "cashback": 7.0},
     ]
     top = result["top_transactions"]
-    assert len(top) == 5  # старая операция не попала
+    assert len(top) == 5
     assert top[0] == {
         "date": "08.03.2021",
         "amount": 3000.0,
@@ -103,15 +107,13 @@ def test_home_page(transactions: pd.DataFrame, fake_outside: None) -> None:
 
 
 def test_home_page_without_settings(
-    transactions: pd.DataFrame,
-    fake_outside: None,
-    monkeypatch: pytest.MonkeyPatch,
+    transactions: pd.DataFrame, fake_outside: None
 ) -> None:
-    def broken() -> dict[str, Any]:
-        raise OSError("no file")
+    with patch.object(views, "load_settings", side_effect=OSError("no file")):
+        result = json.loads(
+            views.home_page("2021-03-31 23:30:00", transactions)
+        )
 
-    monkeypatch.setattr(views, "load_settings", broken)
-    result = json.loads(views.home_page("2021-03-31 23:30:00", transactions))
     assert result["greeting"] == "Доброй ночи"
     assert result["currency_rates"] == []
     assert result["stock_prices"] == []

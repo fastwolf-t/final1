@@ -1,9 +1,23 @@
 from typing import Any
+from unittest.mock import patch
 
 import pandas as pd
 import pytest
 
 import services
+
+RATES = {"USD": 90.0, "XXX": None}
+
+
+def fake_rates(currencies: list[str]) -> list[dict[str, Any]]:
+    return [{"currency": c, "rate": RATES.get(c)} for c in currencies]
+
+
+@pytest.fixture(autouse=True)
+def mock_rates() -> Any:
+    with patch.object(services, "get_currency_rates", fake_rates):
+        yield
+
 
 @pytest.fixture
 def search_df() -> pd.DataFrame:
@@ -16,6 +30,32 @@ def search_df() -> pd.DataFrame:
                 "Переводы",
                 "Кафе (тест)",
             ],
+        }
+    )
+
+
+@pytest.fixture
+def cashback_df() -> pd.DataFrame:
+    return pd.DataFrame(
+        {
+            "Дата операции": [
+                "01.03.2021 00:00:00",
+                "05.03.2021 00:00:00",
+                "06.03.2021 00:00:00",
+                "07.03.2021 00:00:00",
+                "01.04.2021 00:00:00",
+                "02.03.2021 00:00:00",
+            ],
+            "Сумма платежа": [
+                -250.0,
+                -199.99,
+                -1000.0,
+                500.0,
+                -1000.0,
+                -300.0,
+            ],
+            "Категория": ["Еда", "Еда", "Транспорт", "Еда", "Еда", "Еда"],
+            "Валюта платежа": ["RUB", "RUB", "RUB", "RUB", "RUB", "USD"],
         }
     )
 
@@ -41,19 +81,11 @@ def test_simple_search_by_category(search_df: pd.DataFrame) -> None:
 def test_simple_search_special_chars_are_literal(
     search_df: pd.DataFrame,
 ) -> None:
-    result = services.simple_search(search_df, "(тест)")
-    assert len(result) == 1
+    assert len(services.simple_search(search_df, "(тест)")) == 1
 
 
 def test_simple_search_no_match(search_df: pd.DataFrame) -> None:
     assert services.simple_search(search_df, "нет такого") == []
-
-@pytest.fixture(autouse=True)
-def fake_rates(monkeypatch: pytest.MonkeyPatch) -> None:
-    rates: dict[str, float | None] = {"USD": 90.0, "XXX": None}
-
-    def fake(currencies: list[str]) -> list[dict[str, Any]]:
-        return [{"currency": c, "rate": rates.get(c)} for c in currencies]
 
 
 def test_investment_bank_rub_rounding() -> None:
@@ -142,6 +174,7 @@ def test_investment_bank_invalid_limit(limit: int) -> None:
     with pytest.raises(ValueError):
         services.investment_bank("2021-12", [], limit)
 
+
 def test_find_person_transfers() -> None:
     df = pd.DataFrame(
         {
@@ -184,32 +217,6 @@ def test_find_phone_numbers_matches(description: str) -> None:
 def test_find_phone_numbers_no_match(description: str | None) -> None:
     df = pd.DataFrame({"Описание": [description]})
     assert services.find_phone_numbers(df) == []
-
-
-@pytest.fixture
-def cashback_df() -> pd.DataFrame:
-    return pd.DataFrame(
-        {
-            "Дата операции": [
-                "01.03.2021 00:00:00",
-                "05.03.2021 00:00:00",
-                "06.03.2021 00:00:00",
-                "07.03.2021 00:00:00",
-                "01.04.2021 00:00:00",
-                "02.03.2021 00:00:00",
-            ],
-            "Сумма платежа": [
-                -250.0,
-                -199.99,
-                -1000.0,
-                500.0,
-                -1000.0,
-                -300.0,
-            ],
-            "Категория": ["Еда", "Еда", "Транспорт", "Еда", "Еда", "Еда"],
-            "Валюта платежа": ["RUB", "RUB", "RUB", "RUB", "RUB", "USD"],
-        }
-    )
 
 
 def test_cashback_by_category(cashback_df: pd.DataFrame) -> None:

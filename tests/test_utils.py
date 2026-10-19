@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
 from typing import Any
+from unittest.mock import Mock, patch
 
 import pandas as pd
 import pytest
@@ -9,28 +10,14 @@ import requests
 import utils
 
 
-class FakeResponse:
-    def __init__(self, data: Any = None, error: bool = False) -> None:
-        self._data = data
-        self._error = error
-
-    def raise_for_status(self) -> None:
-        if self._error:
-            raise requests.RequestException("boom")
-
-    def json(self) -> Any:
-        return self._data
-
-
-def fake_get(*responses: FakeResponse) -> Any:
-    """Отдаёт ответы по очереди"""
-
-    queue = list(responses)
-
-    def get(*args: Any, **kwargs: Any) -> FakeResponse:
-        return queue.pop(0)
-
-    return get
+def make_response(data: Any = None, error: bool = False) -> Mock:
+    response = Mock()
+    response.json.return_value = data
+    if error:
+        response.raise_for_status.side_effect = requests.RequestException(
+            "boom"
+        )
+    return response
 
 
 def test_load_operations(tmp_path: Path) -> None:
@@ -50,15 +37,17 @@ def test_load_settings_missing_file(tmp_path: Path) -> None:
         utils.load_settings(tmp_path / "nope.json")
 
 
-def test_rates_from_main_site(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_rates_from_main_site() -> None:
     data = {
         "Valute": {
             "USD": {"Value": 90.0, "Nominal": 1},
             "JPY": {"Value": 60.0, "Nominal": 100},
         }
     }
-    monkeypatch.setattr(utils.requests, "get", fake_get(FakeResponse(data)))
-    result = utils.get_currency_rates(["usd", "JPY", "RUB", "XXX"])
+    with patch.object(
+        utils.requests, "get", side_effect=[make_response(data)]
+    ):
+        result = utils.get_currency_rates(["usd", "JPY", "RUB", "XXX"])
     assert result == [
         {"currency": "USD", "rate": 90.0},
         {"currency": "JPY", "rate": 0.6},
@@ -67,37 +56,36 @@ def test_rates_from_main_site(monkeypatch: pytest.MonkeyPatch) -> None:
     ]
 
 
-def test_rates_from_backup_site(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_rates_from_backup_site() -> None:
     backup = {"rates": {"USD": 0.01, "ZERO": 0}}
-    monkeypatch.setattr(
-        utils.requests,
-        "get",
-        fake_get(FakeResponse(error=True), FakeResponse(backup)),
-    )
-    result = utils.get_currency_rates(["USD", "ZERO"])
+    answers = [make_response(error=True), make_response(backup)]
+    with patch.object(utils.requests, "get", side_effect=answers):
+        result = utils.get_currency_rates(["USD", "ZERO"])
     assert result == [
         {"currency": "USD", "rate": 100.0},
         {"currency": "ZERO", "rate": None},
     ]
 
 
-def test_rates_both_sites_down(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(
-        utils.requests,
-        "get",
-        fake_get(FakeResponse(error=True), FakeResponse(error=True)),
-    )
-    result = utils.get_currency_rates(["USD", "rub"])
+def test_rates_both_sites_down() -> None:
+    answers = [make_response(error=True), make_response(error=True)]
+    with patch.object(utils.requests, "get", side_effect=answers):
+        result = utils.get_currency_rates(["USD", "rub"])
     assert result == [
         {"currency": "USD", "rate": None},
         {"currency": "RUB", "rate": 1.0},
     ]
 
 
-def test_rates_broken_currency_data(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_rates_broken_currency_data() -> None:
     data = {
-        "Valute": {"USD": {"Value": 90.0}, "EUR": {"Value": 1, "Nominal": 0}}
+        "Valute": {
+            "USD": {"Value": 90.0},
+            "EUR": {"Value": 1, "Nominal": 0},
+        }
     }
-    monkeypatch.setattr(utils.requests, "get", fake_get(FakeResponse(data)))
-    result = utils.get_currency_rates(["USD", "EUR"])
+    with patch.object(
+        utils.requests, "get", side_effect=[make_response(data)]
+    ):
+        result = utils.get_currency_rates(["USD", "EUR"])
     assert [r["rate"] for r in result] == [None, None]

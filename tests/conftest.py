@@ -1,22 +1,24 @@
-import sys
+import os
+from collections.abc import Iterator
 from pathlib import Path
+from unittest.mock import patch
 
 import pandas as pd
 import pytest
+import requests
+
 
 @pytest.fixture
 def transactions() -> pd.DataFrame:
-    """Набор данныx для теста"""
-
     return pd.DataFrame(
         {
             "Дата операции": [
-                "05.03.2021 12:00:00",  # пятница
-                "06.03.2021 13:00:00",  # суббота
-                "07.03.2021 14:00:00",  # воскресенье
-                "08.03.2021 15:00:00",  # понедельник
-                "09.03.2021 16:00:00",  # вторник
-                "01.10.2020 10:00:00",  # слишком старая
+                "05.03.2021 12:00:00",
+                "06.03.2021 13:00:00",
+                "07.03.2021 14:00:00",
+                "08.03.2021 15:00:00",
+                "09.03.2021 16:00:00",
+                "01.10.2020 10:00:00",
             ],
             "Номер карты": [
                 "*7197",
@@ -48,3 +50,20 @@ def transactions() -> pd.DataFrame:
             ],
         }
     )
+
+
+@pytest.fixture
+def in_tmp_dir(tmp_path: Path) -> Iterator[Path]:
+    old_dir = Path.cwd()
+    os.chdir(tmp_path)
+    yield tmp_path
+    os.chdir(old_dir)
+
+
+@pytest.fixture(autouse=True)
+def no_network() -> Iterator[None]:
+    with patch(
+        "requests.sessions.Session.request",
+        side_effect=requests.ConnectionError("no network in tests"),
+    ):
+        yield

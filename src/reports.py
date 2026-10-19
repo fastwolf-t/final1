@@ -1,16 +1,16 @@
-from collections.abc import Callable
 from functools import wraps
 from pathlib import Path
-from typing import Any, TypeVar, cast
+from typing import Any
 
 import pandas as pd
 
-def save_report(file: str) -> Callable[[F], F]:
+
+def save_report(file: str):
     """Сохраняет результат отчёта в Excel"""
 
-    def decorator(func: F) -> F:
+    def decorator(func):
         @wraps(func)
-        def wrapper(*args: Any, **kwargs: Any) -> Any:
+        def wrapper(*args, **kwargs):
             result = func(*args, **kwargs)
 
             if isinstance(result, pd.DataFrame):
@@ -20,7 +20,7 @@ def save_report(file: str) -> Callable[[F], F]:
 
             return result
 
-        return cast(F, wrapper)
+        return wrapper
 
     return decorator
 

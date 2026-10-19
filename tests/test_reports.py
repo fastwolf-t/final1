@@ -5,6 +5,9 @@ import pytest
 
 import reports
 
+pytestmark = pytest.mark.usefixtures("in_tmp_dir")
+
+
 def test_spending_by_category(transactions: pd.DataFrame) -> None:
     result = reports.spending_by_category(
         transactions, "супермаркеты", "2021-03-31"
@@ -17,7 +20,6 @@ def test_spending_by_category(transactions: pd.DataFrame) -> None:
 def test_spending_by_category_without_date(
     transactions: pd.DataFrame,
 ) -> None:
-    # без даты берётся самая поздняя операция
     result = reports.spending_by_category(transactions, "Супермаркеты")
     assert len(result) == 2
 
@@ -46,10 +48,10 @@ def test_spending_by_weekday(transactions: pd.DataFrame) -> None:
 
 
 def test_spending_by_weekday_empty(transactions: pd.DataFrame) -> None:
-    assert reports.average_spending_by_weekday(
-        transactions, "2019-01-01"
-    ).empty
-    assert reports.average_spending_by_weekday(transactions, "не дата").empty
+    old = reports.average_spending_by_weekday(transactions, "2019-01-01")
+    bad = reports.average_spending_by_weekday(transactions, "не дата")
+    assert old.empty
+    assert bad.empty
 
 
 def test_spending_by_day_type(transactions: pd.DataFrame) -> None:
@@ -67,11 +69,13 @@ def test_spending_by_day_type(transactions: pd.DataFrame) -> None:
 
 
 def test_spending_by_day_type_empty(transactions: pd.DataFrame) -> None:
-    assert reports.average_spending_by_day_type(transactions, "2019-01-01").empty
-    assert reports.average_spending_by_day_type(transactions, "не дата").empty
+    old = reports.average_spending_by_day_type(transactions, "2019-01-01")
+    bad = reports.average_spending_by_day_type(transactions, "не дата")
+    assert old.empty
+    assert bad.empty
 
 
-def test_save_report_skips_non_dataframe(in_tmp_dir: Path) -> None:
+def test_save_report_skips_non_dataframe() -> None:
     @reports.save_report("report/x.xlsx")
     def not_a_table() -> int:
         return 5

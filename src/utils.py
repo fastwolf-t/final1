@@ -75,5 +75,5 @@ def get_currency_rates(currencies: list[str]) -> list[dict[str, Any]]:
                 rate = None
 
         result.append({"currency": code, "rate": rate})
-        
+
     return result
