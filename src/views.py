@@ -4,7 +4,7 @@ from typing import Any
 import pandas as pd
 import requests
 
-from src.utils import get_currency_rates, load_settings
+from utils import get_currency_rates, load_settings
 
 
 def get_greeting(hour: int) -> str:

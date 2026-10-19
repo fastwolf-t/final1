@@ -8,7 +8,6 @@ import services
 
 RATES = {"USD": 90.0, "XXX": None}
 
-
 def fake_rates(currencies: list[str]) -> list[dict[str, Any]]:
     return [{"currency": c, "rate": RATES.get(c)} for c in currencies]
 
